@@ -88,9 +88,9 @@ class SunmiManager {
                 manager?.searchCloudPrinter(context, method
                 ) { p0 ->
                     printDebugLog("🟢 did discover a cloud printer: ${p0?.cloudPrinterInfo.toString()}")
-                    val incomingDeviceName = p0?.cloudPrinterInfo?.name
+                    val incomingDeviceIdentifier = p0?.uniqueIdentifier()
                     val hasDevice = devices.any { device ->
-                        device.cloudPrinterInfo.name == incomingDeviceName
+                        device.uniqueIdentifier() == incomingDeviceIdentifier
                     }
 
                     // We only include the device if we're sure the device is not already in the list
@@ -115,6 +115,10 @@ class SunmiManager {
 
     fun connectUSBPrinter(context: Context, name: String, promise: Promise) {
         connectToPrinter(context, false, PrinterInterface.USB, name, promise)
+    }
+
+    fun connectUSBPrinterByUuid(context: Context, uuid: String, promise: Promise) {
+        connectToPrinter(context, false, PrinterInterface.USB, uuid, promise)
     }
 
     fun connectBluetoothPrinter(context: Context, mac: String, promise: Promise) {
@@ -152,6 +156,15 @@ class SunmiManager {
     fun isUSBPrinterConnected(name: String, promise: Promise) {
         val printer = cloudPrinter
         if (printer != null && printer.cloudPrinterInfo.name == name) {
+            promise.resolve(printer.isConnected)
+        } else {
+            promise.resolve(false)
+        }
+    }
+
+    fun isUSBPrinterConnectedByUuid(uuid: String, promise: Promise) {
+        val printer = cloudPrinter
+        if (printer != null && printer.usbIdentifier() == uuid) {
             promise.resolve(printer.isConnected)
         } else {
             promise.resolve(false)
@@ -338,7 +351,7 @@ class SunmiManager {
             currentPrinter = devices.find { printer ->
                 when (printerInterface.method) {
                     SearchMethod.BT -> printer.cloudPrinterInfo.mac == value
-                    SearchMethod.USB -> printer.cloudPrinterInfo.name == value
+                    SearchMethod.USB -> printer.usbIdentifier() == value || printer.cloudPrinterInfo.name == value
                     else -> printer.cloudPrinterInfo.address == value
                 }
             }
@@ -376,6 +389,30 @@ class SunmiManager {
     }
 }
 
+private fun CloudPrinter.usbIdentifier(): String {
+    val info = this.cloudPrinterInfo
+    val usbAddress = info.address?.takeIf { it.isNotBlank() }
+
+    if (usbAddress != null) {
+        return usbAddress
+    }
+
+    return "USB-${info.vid}-${info.pid}-${info.name}"
+}
+
+private fun CloudPrinter.uniqueIdentifier(): String {
+    val info = this.cloudPrinterInfo
+    val isUsb = info.vid > 0 && info.pid > 0
+
+    if (isUsb) {
+        return this.usbIdentifier()
+    }
+
+    return info.mac?.takeIf { it.isNotBlank() }
+        ?: info.address?.takeIf { it.isNotBlank() }
+        ?: info.name
+}
+
 fun CloudPrinter.toDictionary(): Map<String, Any?> {
     val info = this.cloudPrinterInfo
     if (info.vid > 0 && info.pid > 0) {
@@ -384,7 +421,7 @@ fun CloudPrinter.toDictionary(): Map<String, Any?> {
             "interface" to PrinterInterface.USB.name,
             "name" to info.name,
             "signalStrength" to null,
-            "uuid" to null,
+            "uuid" to this.usbIdentifier(),
             "ip" to null,
             "serialNumber" to null,
             "mode" to null

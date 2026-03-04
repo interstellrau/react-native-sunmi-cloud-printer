@@ -1,4 +1,5 @@
 import * as SunmiSDK from 'react-native-sunmi-cloud-printer';
+import { USBImplementation } from '../providers/my-printers';
 
 import { Image } from '../components/image';
 
@@ -9,8 +10,26 @@ export interface Printer {
   details: string;
 }
 
-export const disconnectSunmiPrinter = async (printer: SunmiSDK.SunmiCloudPrinter): Promise<void> => {
-  const isConnected = await SunmiSDK.isPrinterConnected(printer);
+const isUSBPrinterConnected = async (
+  printer: SunmiSDK.SunmiCloudPrinter,
+  usbImplementation: USBImplementation
+): Promise<boolean> => {
+  if (printer.interface !== 'USB') {
+    return SunmiSDK.isPrinterConnected(printer);
+  }
+
+  if (usbImplementation === 'uuid' && printer.uuid) {
+    return SunmiSDK.isUSBPrinterConnectedByUuid({ uuid: printer.uuid });
+  }
+
+  return SunmiSDK.isUSBPrinterConnected({ name: printer.name });
+};
+
+export const disconnectSunmiPrinter = async (
+  printer: SunmiSDK.SunmiCloudPrinter,
+  usbImplementation: USBImplementation = 'legacy'
+): Promise<void> => {
+  const isConnected = await isUSBPrinterConnected(printer, usbImplementation);
   if (__DEV__) {
     console.log(`🚀 Disconnecting printer ${printer.name}: isConnected=${isConnected}`);
   }
@@ -20,9 +39,12 @@ export const disconnectSunmiPrinter = async (printer: SunmiSDK.SunmiCloudPrinter
   }
 };
 
-export const connectSunmiPrinter = async (printer: SunmiSDK.SunmiCloudPrinter): Promise<void> => {
+export const connectSunmiPrinter = async (
+  printer: SunmiSDK.SunmiCloudPrinter,
+  usbImplementation: USBImplementation = 'legacy'
+): Promise<void> => {
   // If we have an open connection, we should not connect again. Manually, we check the current connection status.
-  const isConnected = await SunmiSDK.isPrinterConnected(printer);
+  const isConnected = await isUSBPrinterConnected(printer, usbImplementation);
   if (__DEV__) {
     console.log(`🚀 Connecting to printer ${printer.name}: isConnected=${isConnected}`);
   }
@@ -35,7 +57,11 @@ export const connectSunmiPrinter = async (printer: SunmiSDK.SunmiCloudPrinter): 
         await SunmiSDK.connectLanPrinter({ ipAddress: printer.ip, force: true });
         break;
       case 'USB':
-        await SunmiSDK.connectUSBPrinter({ name: printer.name });
+        if (usbImplementation === 'uuid' && printer.uuid) {
+          await SunmiSDK.connectUSBPrinterByUuid({ uuid: printer.uuid });
+        } else {
+          await SunmiSDK.connectUSBPrinter({ name: printer.name });
+        }
         break;
     }
 
@@ -44,7 +70,7 @@ export const connectSunmiPrinter = async (printer: SunmiSDK.SunmiCloudPrinter): 
     // to know when the printer is connected
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    const hasConnected = await SunmiSDK.isPrinterConnected(printer);
+    const hasConnected = await isUSBPrinterConnected(printer, usbImplementation);
     if (!hasConnected) {
       throw new Error('Failed to connect to the printer');
     }
