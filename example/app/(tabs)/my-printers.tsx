@@ -22,21 +22,21 @@ const showError = (error: SunmiError | Error | undefined) => {
 };
 
 export default function MyPrintersScreen() {
-  const { printers, removePrinter, toggleConnection } = useMyPrinters();
+  const { printers, removePrinter, toggleConnection, usbImplementation, toggleUSBImplementation } = useMyPrinters();
 
   const disconnectAllPrinters = useCallback(() => {
     // Disconnect all the printers
     printers.forEach((printer) => {
       if (printer.isConnected) {
         toggleConnection(printer.cloudPrinter);
-        disconnectSunmiPrinter(printer.cloudPrinter).catch((e) => {
+        disconnectSunmiPrinter(printer.cloudPrinter, usbImplementation).catch((e) => {
           if (__DEV__) {
             console.error('Error disconnecting printer', e);
           }
         });
       }
     });
-  }, [printers, toggleConnection]);
+  }, [printers, toggleConnection, usbImplementation]);
 
   const handlePrinterAction = useCallback(
     async (printer: MyPrinter, action: 'test-print' | 'remove-printer' | 'toggle-connection') => {
@@ -53,7 +53,7 @@ export default function MyPrintersScreen() {
           case 'toggle-connection': {
             printers.forEach((p) => {
               if (p !== printer) {
-                disconnectSunmiPrinter(p.cloudPrinter).catch((e) => {
+                disconnectSunmiPrinter(p.cloudPrinter, usbImplementation).catch((e) => {
                   if (__DEV__) {
                     console.error('Error disconnecting printer', e);
                   }
@@ -62,9 +62,9 @@ export default function MyPrintersScreen() {
             });
 
             if (printer.isConnected) {
-              await disconnectSunmiPrinter(printer.cloudPrinter);
+              await disconnectSunmiPrinter(printer.cloudPrinter, usbImplementation);
             } else {
-              await connectSunmiPrinter(printer.cloudPrinter);
+              await connectSunmiPrinter(printer.cloudPrinter, usbImplementation);
             }
             toggleConnection(printer.cloudPrinter);
             break;
@@ -75,7 +75,7 @@ export default function MyPrintersScreen() {
         disconnectAllPrinters();
       }
     },
-    [disconnectAllPrinters, printers, removePrinter, toggleConnection]
+    [disconnectAllPrinters, printers, removePrinter, toggleConnection, usbImplementation]
   );
 
   const renderPrinterItem = useCallback(({ item: printer }: { item: MyPrinter }) => {
@@ -179,6 +179,17 @@ export default function MyPrintersScreen() {
 
   return (
     <View style={styles.container}>
+      {Platform.OS === 'android' ? (
+        <TouchableOpacity style={styles.usbModeContainer} onPress={toggleUSBImplementation}>
+          <Ionicons
+            name={usbImplementation === 'uuid' ? 'toggle' : 'toggle-outline'}
+            size={28}
+            color={Colors.primary}
+          />
+          <Text style={styles.usbModeText}>USB Mode: {usbImplementation === 'uuid' ? 'UUID' : 'Legacy (Name)'}</Text>
+        </TouchableOpacity>
+      ) : null}
+
       {printers.length > 0 ? (
         <FlatList
           data={printers}
@@ -205,6 +216,18 @@ const styles = StyleSheet.create({
   printerList: {
     padding: 16,
     gap: 16,
+  },
+  usbModeContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  usbModeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary,
   },
   printerCard: {
     backgroundColor: Colors.white,

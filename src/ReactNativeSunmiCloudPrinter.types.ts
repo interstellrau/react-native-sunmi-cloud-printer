@@ -19,6 +19,7 @@ export interface SunmiCloudBluetoothPrinter extends SunmiCloudPrinterI {
 export interface SunmiCloudUSBPrinter extends SunmiCloudPrinterI {
   interface: 'USB';
   name: string;
+  uuid: string;
 }
 
 type SunmiErrorType =

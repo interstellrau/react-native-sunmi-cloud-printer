@@ -96,6 +96,10 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
       sunmiManager.isUSBPrinterConnected(name, promise)
     }
 
+    AsyncFunction("isUSBPrinterConnectedByUuid") { uuid: String, promise: Promise ->
+      sunmiManager.isUSBPrinterConnectedByUuid(uuid, promise)
+    }
+
     AsyncFunction("checkBluetoothPermissions") { promise: Promise ->
       sunmiManager.checkBluetoothPermissions(context, promise)
     }
@@ -110,6 +114,10 @@ class ReactNativeSunmiCloudPrinterModule : Module() {
 
     AsyncFunction("connectUSBPrinter") { name: String, promise: Promise ->
       sunmiManager.connectUSBPrinter(context, name, promise)
+    }
+
+    AsyncFunction("connectUSBPrinterByUuid") { uuid: String, promise: Promise ->
+      sunmiManager.connectUSBPrinterByUuid(context, uuid, promise)
     }
 
     // Low level API methods

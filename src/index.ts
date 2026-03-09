@@ -51,8 +51,31 @@ export function isPrinterConnected(printer: SunmiCloudPrinter): Promise<boolean>
     case 'LAN':
       return ReactNativeSunmiCloudPrinterModule.isLanPrinterConnected(printer.ip);
     case 'USB':
+      if(printer.uuid) {
+        return ReactNativeSunmiCloudPrinterModule.isUSBPrinterConnectedByUuid(printer.uuid);
+      }
       return ReactNativeSunmiCloudPrinterModule.isUSBPrinterConnected(printer.name);
   }
+}
+
+interface IsUSBPrinterConnectedProps {
+  name: string;
+}
+export function isUSBPrinterConnected({ name }: IsUSBPrinterConnectedProps): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    return ReactNativeSunmiCloudPrinterModule.isUSBPrinterConnected(name);
+  }
+  return Promise.resolve(false);
+}
+
+interface IsUSBPrinterConnectedByUuidProps {
+  uuid: string;
+}
+export function isUSBPrinterConnectedByUuid({ uuid }: IsUSBPrinterConnectedByUuidProps): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    return ReactNativeSunmiCloudPrinterModule.isUSBPrinterConnectedByUuid(uuid);
+  }
+  return Promise.resolve(false);
 }
 
 export function checkBluetoothPermissions(): Promise<boolean> {
@@ -136,6 +159,19 @@ interface ConnectUSBPrinterProps {
 export async function connectUSBPrinter({ name }: ConnectUSBPrinterProps): Promise<void> {
   if (Platform.OS === 'android') {
     return ReactNativeSunmiCloudPrinterModule.connectUSBPrinter(name);
+  } else {
+    return Promise.reject(
+      new SunmiError('ERROR_UNSUPPORTED_PLATFORM', 'USB connection is not supported on this platform')
+    );
+  }
+}
+
+interface ConnectUSBPrinterByUuidProps {
+  uuid: string;
+}
+export async function connectUSBPrinterByUuid({ uuid }: ConnectUSBPrinterByUuidProps): Promise<void> {
+  if (Platform.OS === 'android') {
+    return ReactNativeSunmiCloudPrinterModule.connectUSBPrinterByUuid(uuid);
   } else {
     return Promise.reject(
       new SunmiError('ERROR_UNSUPPORTED_PLATFORM', 'USB connection is not supported on this platform')
