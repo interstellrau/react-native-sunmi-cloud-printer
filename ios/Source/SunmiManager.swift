@@ -140,7 +140,7 @@ class SunmiManager: NSObject {
         let sunmiPrinter = SunmiPrinterDevice(interface: PrinterInterface.lan.rawValue, name: "Manual", ip: ipAddress)
         devices.append(.ip(sunmiPrinter))
       } else {
-        promise.reject(SunmiPrinterError.printerNotFound)
+        promise.rejectWithSunmiError(SunmiPrinterError.printerNotFound)
         return
       }
     }
@@ -175,7 +175,7 @@ class SunmiManager: NSObject {
   func disconnectPrinter(promise: Promise) {
     printDebugLog("🟢 will disconnect printer")
     guard let currentPrinter = currentPrinter else {
-      promise.reject(SunmiPrinterError.printerNotSetup)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotSetup)
       return
     }
     self.currentPrinter = nil
@@ -197,7 +197,7 @@ class SunmiManager: NSObject {
     
   func lineFeed(lines: Int32, promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.lineFeed(lines)
@@ -206,7 +206,7 @@ class SunmiManager: NSObject {
   
   func setTextAlign(alignment: Int, promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.setAlignment(SMAlignStyle(rawValue: alignment))
@@ -215,7 +215,7 @@ class SunmiManager: NSObject {
   
   func setPrintModesBold(bold: Bool, doubleHeight: Bool, doubleWidth: Bool, promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.setPrintModesBold(bold, double_h: doubleHeight, double_w: doubleWidth)
@@ -224,7 +224,7 @@ class SunmiManager: NSObject {
 
   func restoreDefaultSettings(promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.restoreDefaultSettings()
@@ -233,7 +233,7 @@ class SunmiManager: NSObject {
   
   func restoreDefaultLineSpacing(promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.restoreDefaultLineSpacing()
@@ -242,7 +242,7 @@ class SunmiManager: NSObject {
   
   func addCut(fullCut: Bool, promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.cutPaper(fullCut)
@@ -251,7 +251,7 @@ class SunmiManager: NSObject {
   
   func addText(text: String, promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.appendText(text)
@@ -274,7 +274,7 @@ class SunmiManager: NSObject {
     }
     
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.append(scaledImage, mode: SMImageAlgorithm_DITHERING)
@@ -364,7 +364,7 @@ class SunmiManager: NSObject {
   
   func openCashDrawer(promise: Promise) {
     guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
+      promise.rejectWithSunmiError(SunmiPrinterError.emptyBuffer)
       return
     }
     command.openCashBox()
@@ -372,11 +372,14 @@ class SunmiManager: NSObject {
   }
   
   func getDeviceState(promise: Promise) {
-    guard let command = command else {
-      promise.reject(SunmiPrinterError.emptyBuffer)
-      return
+    // Auto-create a command buffer if one doesn't exist, since querying
+    // device state shouldn't require a prior clearBuffer() call.
+    if command == nil {
+      let cmd = makeSunmiCommand()
+      cmd.clearBuffer()
+      self.command = cmd
     }
-    command.getDeviceState()
+    command!.getDeviceState()
     sendAndReceivePrinterState(promise: promise)
   }
   
@@ -398,7 +401,7 @@ class SunmiManager: NSObject {
     // Check if bluetooth is connected
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot get serial number.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
@@ -419,7 +422,7 @@ class SunmiManager: NSObject {
     
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot enter network mode.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
@@ -442,7 +445,7 @@ class SunmiManager: NSObject {
     
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot get WiFi list.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
@@ -463,7 +466,7 @@ class SunmiManager: NSObject {
     
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot configure WiFi.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
@@ -484,7 +487,7 @@ class SunmiManager: NSObject {
     
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot quit WiFi config.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
@@ -505,7 +508,7 @@ class SunmiManager: NSObject {
     
     guard manager.bluetoothIsConnection() else {
       printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot delete WiFi settings.")
-      promise.reject(SunmiPrinterError.printerNotConnected)
+      promise.rejectWithSunmiError(SunmiPrinterError.printerNotConnected)
       return
     }
     
