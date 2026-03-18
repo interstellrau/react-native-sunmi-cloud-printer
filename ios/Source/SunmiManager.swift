@@ -5,6 +5,13 @@ protocol SunmiManagerDelegate: AnyObject {
   func didUpdateDevices(list: [SunmiDevice]) -> Void
   func didConnectPrinter() -> Void
   func didDisconnectPrinter() -> Void
+  func didReceiveWiFiNetwork(network: [String: Any]) -> Void
+  func didFinishReceivingWiFiList() -> Void
+  func didEnterNetworkMode() -> Void
+  func didStartConfigPrinter() -> Void
+  func didConfigPrinterSuccess() -> Void
+  func didConfigPrinterFail() -> Void
+  func didReceivePrinterSN(serialNumber: String) -> Void
 }
 
 class SunmiManager: NSObject {
@@ -372,6 +379,140 @@ class SunmiManager: NSObject {
     command.getDeviceState()
     sendAndReceivePrinterState(promise: promise)
   }
+  
+  // -----------------------
+  // WiFi Configuration APIs
+  // -----------------------
+  
+  func getPrinterSerialNumber(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    // CRITICAL: Ensure delegate is set BEFORE calling any methods
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Verify delegate is properly set
+    manager.bluetoothDelegate = self
+    
+    // Check if bluetooth is connected
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot get serial number.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    printDebugLog("🟢 Requesting printer serial number...")
+    manager.getPrinterSN()
+    promise.resolve()
+  }
+  
+  func enterNetworkMode(serialNumber: String, promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Ensure delegate is set
+    manager.bluetoothDelegate = self
+    
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot enter network mode.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    // If serial number is empty, pass nil to enter initial network mode
+    let snToUse = serialNumber.isEmpty ? nil : serialNumber
+    printDebugLog("🟢 Entering network mode with SN: \(snToUse ?? "nil (initial mode)")")
+    manager.enterNetworkMode(snToUse)
+    promise.resolve()
+  }
+  
+  func getWiFiList(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Ensure delegate is set
+    manager.bluetoothDelegate = self
+    
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot get WiFi list.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    printDebugLog("🟢 Requesting WiFi list...")
+    manager.getWifiList()
+    promise.resolve()
+  }
+  
+  func configureWiFi(ssid: String, password: String, promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Ensure delegate is set
+    manager.bluetoothDelegate = self
+    
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot configure WiFi.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    printDebugLog("🟢 Configuring WiFi: SSID=\(ssid)")
+    manager.connectAP(ssid, password: password)
+    promise.resolve()
+  }
+  
+  func quitWiFiConfig(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Ensure delegate is set
+    manager.bluetoothDelegate = self
+    
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot quit WiFi config.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    printDebugLog("🟢 Quitting WiFi configuration mode...")
+    manager.quitConnectAP()
+    promise.resolve()
+  }
+  
+  func deleteWiFiSettings(promise: Promise) {
+    let manager = SunmiPrinterManager.shareInstance()
+    
+    if bluetoothManager == nil {
+      bluetoothManager = manager
+    }
+    
+    // Ensure delegate is set
+    manager.bluetoothDelegate = self
+    
+    guard manager.bluetoothIsConnection() else {
+      printDebugLog("🔴 ERROR: Bluetooth not connected. Cannot delete WiFi settings.")
+      promise.reject(SunmiPrinterError.printerNotConnected)
+      return
+    }
+    
+    printDebugLog("🟢 Deleting WiFi settings...")
+    manager.deleteWifiSetting()
+    promise.resolve()
+  }
 }
 
 extension SunmiManager: PrinterManagerDelegate {
@@ -401,6 +542,59 @@ extension SunmiManager: PrinterManagerDelegate {
     printDebugLog("🔴 did disconnect from Bluetooth printer")
     currentPrinter = nil
     delegate?.didDisconnectPrinter()
+  }
+  
+  func receiveDeviceSn(_ sn: String?) {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: received printer serial number: \(sn ?? "unknown")")
+    if let sn = sn {
+      printDebugLog("🟢 Notifying delegate with SN: \(sn)")
+      delegate?.didReceivePrinterSN(serialNumber: sn)
+    } else {
+      printDebugLog("🔴 Serial number is nil!")
+    }
+  }
+  
+  func willStartReceiveDeviceSn() {
+    printDebugLog("🟢 DELEGATE CALLBACK: willStartReceiveDeviceSn - printer is processing request")
+  }
+  
+  func didEnterNetworkMode() {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: entered network mode")
+    delegate?.didEnterNetworkMode()
+  }
+  
+  func receiveAPInfo(_ apInfo: [AnyHashable : Any]?) {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: received WiFi network info: \(String(describing: apInfo))")
+    if let apInfo = apInfo as? [String: Any] {
+      printDebugLog("🟢 Notifying delegate with network: \(apInfo)")
+      delegate?.didReceiveWiFiNetwork(network: apInfo)
+    } else {
+      printDebugLog("🔴 Could not cast apInfo to [String: Any]")
+    }
+  }
+  
+  func didReceiveAllApInfo() {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: finished receiving all WiFi networks")
+    delegate?.didFinishReceivingWiFiList()
+  }
+  
+  func didFailReceiveApInfo() {
+    printDebugLog("🔴 🔴 🔴 DELEGATE CALLBACK: failed to receive WiFi info")
+  }
+  
+  func willStartConfigPrinter() {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: will start configuring WiFi")
+    delegate?.didStartConfigPrinter()
+  }
+  
+  func configPrinterSuccess() {
+    printDebugLog("🟢 🟢 🟢 DELEGATE CALLBACK: WiFi configuration success")
+    delegate?.didConfigPrinterSuccess()
+  }
+  
+  func configPrinterFail() {
+    printDebugLog("🔴 🔴 🔴 DELEGATE CALLBACK: WiFi configuration failed")
+    delegate?.didConfigPrinterFail()
   }
 }
 
