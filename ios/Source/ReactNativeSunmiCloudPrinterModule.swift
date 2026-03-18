@@ -15,7 +15,7 @@ public class ReactNativeSunmiCloudPrinterModule: Module {
     Name("ReactNativeSunmiCloudPrinter")
 
     // Defines event names that the module can send to JavaScript.
-    Events("onUpdatePrinters", "onPrinterConnectionUpdate")
+    Events("onUpdatePrinters", "onPrinterConnectionUpdate", "onWiFiNetworkReceived", "onWiFiListComplete", "onWiFiConfigStatus", "onPrinterSerialNumber")
 
     // Enables the module to be used as a native view. Definition components that are accepted as part of the
     // view definition: Prop, Events.
@@ -150,6 +150,109 @@ public class ReactNativeSunmiCloudPrinterModule: Module {
     AsyncFunction("getDeviceState") { (promise: Promise) in
       sunmiManager.getDeviceState(promise: promise)
     }
+    
+    // WiFi Configuration methods
+    
+    AsyncFunction("getPrinterSerialNumber") { (promise: Promise) in
+      sunmiManager.getPrinterSerialNumber(promise: promise)
+    }
+    
+    AsyncFunction("enterNetworkMode") { (serialNumber: String, promise: Promise) in
+      sunmiManager.enterNetworkMode(serialNumber: serialNumber, promise: promise)
+    }
+    
+    AsyncFunction("getWiFiList") { (promise: Promise) in
+      sunmiManager.getWiFiList(promise: promise)
+    }
+    
+    AsyncFunction("configureWiFi") { (ssid: String, password: String, promise: Promise) in
+      sunmiManager.configureWiFi(ssid: ssid, password: password, promise: promise)
+    }
+    
+    AsyncFunction("quitWiFiConfig") { (promise: Promise) in
+      sunmiManager.quitWiFiConfig(promise: promise)
+    }
+    
+    AsyncFunction("deleteWiFiSettings") { (promise: Promise) in
+      sunmiManager.deleteWiFiSettings(promise: promise)
+    }
+    
+    // -----------------------------
+    // Inner Printer methods (NOT SUPPORTED ON iOS)
+    // These methods are only available on Android Sunmi devices with embedded thermal printers
+    // -----------------------------
+    
+    Function("hasInnerPrinter") {
+      return false
+    }
+    
+    AsyncFunction("innerPrinterInit") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterStatus") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterSerialNo") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterVersion") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterModel") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("getInnerPrinterPaper") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintText") { (text: String, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintTextWithFont") { (text: String, typeface: String, fontSize: Float, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerSetAlignment") { (alignment: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerSetFontSize") { (fontSize: Float, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerSetFontWeight") { (isBold: Bool, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerLineWrap") { (lines: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintBitmap") { (base64Data: String, width: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintBarCode") { (data: String, symbology: Int, height: Int, width: Int, textPosition: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerPrintQRCode") { (data: String, moduleSize: Int, errorLevel: Int, promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerCutPaper") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
+    
+    AsyncFunction("innerOpenCashDrawer") { (promise: Promise) in
+      promise.reject("ERROR_NOT_SUPPORTED", "Inner printer is only supported on Android Sunmi devices")
+    }
   }
 }
 
@@ -172,6 +275,53 @@ extension ReactNativeSunmiCloudPrinterModule: SunmiManagerDelegate {
     printDebugLog("notification: did disconnect printer [onPrinterConnectionUpdate]")
     sendEvent("onPrinterConnectionUpdate", [
       "connected": false
+    ])
+  }
+  
+  func didReceiveWiFiNetwork(network: [String : Any]) {
+    printDebugLog("notification: received WiFi network [onWiFiNetworkReceived]")
+    sendEvent("onWiFiNetworkReceived", [
+      "network": network
+    ])
+  }
+  
+  func didFinishReceivingWiFiList() {
+    printDebugLog("notification: finished receiving WiFi list [onWiFiListComplete]")
+    sendEvent("onWiFiListComplete", [:])
+  }
+  
+  func didEnterNetworkMode() {
+    printDebugLog("notification: entered network mode [onWiFiConfigStatus]")
+    sendEvent("onWiFiConfigStatus", [
+      "status": "entered_network_mode"
+    ])
+  }
+  
+  func didStartConfigPrinter() {
+    printDebugLog("notification: will start config printer [onWiFiConfigStatus]")
+    sendEvent("onWiFiConfigStatus", [
+      "status": "will_start_config"
+    ])
+  }
+  
+  func didConfigPrinterSuccess() {
+    printDebugLog("notification: WiFi config success [onWiFiConfigStatus]")
+    sendEvent("onWiFiConfigStatus", [
+      "status": "success"
+    ])
+  }
+  
+  func didConfigPrinterFail() {
+    printDebugLog("notification: WiFi config failed [onWiFiConfigStatus]")
+    sendEvent("onWiFiConfigStatus", [
+      "status": "failed"
+    ])
+  }
+  
+  func didReceivePrinterSN(serialNumber: String) {
+    printDebugLog("notification: received printer SN [onPrinterSerialNumber]")
+    sendEvent("onPrinterSerialNumber", [
+      "serialNumber": serialNumber
     ])
   }
 }
