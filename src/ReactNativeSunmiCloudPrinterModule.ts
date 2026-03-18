@@ -1,6 +1,6 @@
 import { NativeModule, requireNativeModule } from 'expo';
 
-import { PrintersEventPayload, PrinterConnectionPayload, WiFiConfigStatusPayload, PrinterSerialNumberPayload } from './ReactNativeSunmiCloudPrinter.types';
+import { PrinterInterface, PrintersEventPayload, PrinterConnectionPayload, WiFiConfigStatusPayload, PrinterSerialNumberPayload } from './ReactNativeSunmiCloudPrinter.types';
 
 declare class ReactNativeSunmiCloudPrinterModule extends NativeModule {
   // Event listeners
@@ -34,7 +34,7 @@ declare class ReactNativeSunmiCloudPrinterModule extends NativeModule {
   setTimeout(timeout: number): void;
 
   // Printer discovery and connection
-  discoverPrinters(printerInterface: number): Promise<void>;
+  discoverPrinters(printerInterface: PrinterInterface): Promise<void>;
   disconnectPrinter(): Promise<void>;
   connectLanPrinter(ipAddress: string, force: boolean): Promise<void>;
   connectBluetoothPrinter(uuid: string): Promise<void>;
@@ -62,7 +62,7 @@ declare class ReactNativeSunmiCloudPrinterModule extends NativeModule {
   openCashDrawer(): Promise<void>;
 
   // Device state
-  getDeviceState(): Promise<string>;
+  getDeviceState(): Promise<'OFFLINE' | 'UNKNOWN' | 'RUNNING' | 'NEAR_OUT_PAPER' | 'OUT_PAPER' | 'JAM_PAPER' | 'PICK_PAPER' | 'COVER' | 'OVER_HOT' | 'MOTOR_HOT'>;
 
   // WiFi configuration
   enterNetworkMode(serialNumber: string): Promise<void>;
